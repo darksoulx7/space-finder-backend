@@ -1,0 +1,3 @@
+{
+    "app":"npx ts-node infrastrucure/Launcher.ts"
+}
