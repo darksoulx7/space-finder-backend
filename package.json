@@ -18,7 +18,8 @@
   },
   "homepage": "https://github.com/darksoulx7/space-finder-backend#readme",
   "dependencies": {
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "node-typescript": "^0.1.3"
   },
   "devDependencies": {
     "aws-cdk": "^2.54.0",
