@@ -1,56 +1,62 @@
 import { Stack, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { LambdaIntegration, RestApi } from "aws-cdk-lib/aws-apigateway";
-import {
-  Code,
-  Function as LambdaFunction,
-  Runtime,
-} from "aws-cdk-lib/aws-lambda";
-import { join } from "path";
+import { RestApi } from "aws-cdk-lib/aws-apigateway";
+
 import { GenericTable } from "./GenericTable";
-import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 export class SpaceStack extends Stack {
-  private api =new RestApi(this,'SpaceApi')
-  private api2 = new RestApi(this,'putAPi')
-  private spacesTable = new GenericTable(
-    'SpaceTable',
-    'spaceId',
-    this
-  )
+  private api = new RestApi(this, "SpaceApi");
+
+  private spacesTable = new GenericTable(this, {
+    tableName: "SpacesTable",
+    primaryKey: "spaceId",
+    createLambdaPath: "create",
+  });
+
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
 
-    const helloLambda = new LambdaFunction(this, "helloLambda", {
-      runtime: Runtime.NODEJS_16_X,
-      code: Code.fromAsset(join(__dirname,'..','services','hello')),
-      handler: 'hello.main'
-    });
-
-    const helloLambdaIntegreation = new LambdaIntegration(helloLambda);
-    const helloLambdaResource = this.api.root.addResource("hello");
-    helloLambdaResource.addMethod("GET", helloLambdaIntegreation);
-
-      
-    const dynamoPolicy = new PolicyStatement();
-    dynamoPolicy.addActions("dynamodb:*");
-    dynamoPolicy.addResources("*");
-    
-    const putItemLambdaNodejs = new LambdaFunction(
-      this,
-      "putItemLambdaNodejs",
-      {
-        runtime: Runtime.NODEJS_16_X,
-        code: Code.fromAsset(
-          join(__dirname, "../services/SpaceTable")
-        ),
-        handler: "create.handler",
-      }
-    );
-     putItemLambdaNodejs.addToRolePolicy(dynamoPolicy);
-
-     const putAPiIntegration = new LambdaIntegration(putItemLambdaNodejs);
-     const putLambdaResource = this.api2.root.addResource("create");
-     putLambdaResource.addMethod("PUT", putAPiIntegration);
-    
+    const spaceResource = this.api.root.addResource('spaces');
+    spaceResource.addMethod("POST", this.spacesTable.createLambdaIntegration);
   }
 }
+
+
+    // const dynamoPolicy = new PolicyStatement();
+    // dynamoPolicy.addActions("dynamodb:*");
+    // dynamoPolicy.addResources("*");
+
+ // const putItemSpacesTable = new LambdaFunction(this, "putItemSpacesTable", {
+    //   runtime: Runtime.NODEJS_16_X,
+    //   code: Code.fromAsset(join(__dirname, "../services/SpacesTable")),
+    //   handler: "create.handler",
+    // });
+    // putItemSpacesTable.addToRolePolicy(dynamoPolicy);
+
+    // const putLambdaResource = this.createApi.root.addResource("create");
+    // putLambdaResource.addMethod("PUT", putSpacesIntegration);
+   // const helloLambda = new LambdaFunction(this, "helloLambda", {
+    //   runtime: Runtime.NODEJS_16_X,
+    //   code: Code.fromAsset(join(__dirname, "..", "services", "hello")),
+    //   handler: "hello.main",
+    // });
+  // private api = new RestApi(this, "SpaceApi");
+
+    // const helloLambdaIntegreation = new LambdaIntegration(helloLambda);
+    // const helloLambdaResource = this.api.root.addResource("hello");
+    // helloLambdaResource.addMethod("GET", helloLambdaIntegreation);
+
+
+     // const putItemLambdaNodejs = new LambdaFunction(
+    //   this,
+    //   "putItemLambdaNodejs",
+    //   {
+    //     runtime: Runtime.NODEJS_16_X,
+    //     code: Code.fromAsset(join(__dirname, "../services/SpaceTable")),
+    //     handler: "create.handler",
+    //   }
+    // );
+
+     //  const putAPiIntegration = new LambdaIntegration(putItemLambdaNodejs);
+    //  const putLambdaResource = this.api2.root.addResource("create");
+    //  putLambdaResource.addMethod("PUT", putAPiIntegration);
+    // putItemLambdaNodejs.addToRolePolicy(dynamoPolicy);
