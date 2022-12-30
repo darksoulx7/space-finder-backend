@@ -3,7 +3,7 @@ const { v4 } = require('uuid')
 
 const dbClient = new DynamoDB.DocumentClient();
 
-
+const TABLE_NAME = process.env.TABLE_NAME
 module.exports.handler = async (event, context) => {
 
   const result = {
@@ -20,10 +20,10 @@ module.exports.handler = async (event, context) => {
 
   try {
     await dbClient.put({
-        TableName: "SpacesTable",
+        TableName: TABLE_NAME,
         Item: item,
       }).promise().then(() => {
-        console.log("suscess")
+        console.log("success")
       }).catch((error) => console.log('dynamodb error', error));
   } catch (error) {
     console.log("error ===========>", error)
