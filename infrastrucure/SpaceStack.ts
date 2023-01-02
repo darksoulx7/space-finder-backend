@@ -11,6 +11,7 @@ export class SpaceStack extends Stack {
     primaryKey: "spaceId",
     createLambdaPath: "create",
     readLambdaPath: "read",
+    secondaryIndexes: ['galaxyName']
   });
 
   
