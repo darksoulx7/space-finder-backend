@@ -1,5 +1,4 @@
 const { DynamoDB } = require('aws-sdk');
-const { v4 } = require('uuid')
 
 const dbClient = new DynamoDB.DocumentClient();
 
@@ -14,15 +13,15 @@ module.exports.handler = async (event, context) => {
 
     try {
 
-        if(event.queryStringParameters) {
+        if (event.queryStringParameters) {
             console.log(event.queryStringParameters);
             if (PRIMARY_KEY in event.queryStringParameters) {
                 result.body = await queryWithPrimaryPartition(event.queryStringParameters)
-            } else  {
-                result.body  = await querywithGlobalSecondaryIndexes(event.queryStringParameters)
+            } else {
+                result.body = await querywithGlobalSecondaryIndexes(event.queryStringParameters)
             }
         } else {
-            result.body = await sacnTable() 
+            result.body = await sacnTable()
         }
     } catch (error) {
         console.log("error:", error)
@@ -31,15 +30,14 @@ module.exports.handler = async (event, context) => {
     return result;
 }
 
-async function  sacnTable(){
+async function sacnTable() {
     const queryResponse = await dbClient.scan({
         TableName: TABLE_NAME,
     }).promise();
-    return  JSON.stringify(queryResponse.Items)
+    return JSON.stringify(queryResponse.Items)
 }
 
-
-async function queryWithPrimaryPartition (queryParams){
+async function queryWithPrimaryPartition(queryParams) {
     const keyValue = queryParams[PRIMARY_KEY];
     const queryResponse = await dbClient.query({
         TableName: TABLE_NAME,
@@ -53,7 +51,6 @@ async function queryWithPrimaryPartition (queryParams){
     }).promise();
     return JSON.stringify(queryResponse.Items);
 }
-
 
 async function querywithGlobalSecondaryIndexes(queryParams) {
     console.log("Queryparam:", queryParams);
@@ -77,9 +74,7 @@ async function querywithGlobalSecondaryIndexes(queryParams) {
 async function querywithGlobalSecondaryIndexees(queryParams) {
     console.log("Queryparam:", queryParams);
 
-    
-
-    const queryKey = Object.keys(queryParams)[0]
+    const [queryKey] = Object.keys(queryParams)
     const queryValue = queryParams[queryKey]
 
     const queryKey1 = Object.keys(queryParams)[1]
