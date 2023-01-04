@@ -1,11 +1,12 @@
 import { Stack, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { RestApi } from "aws-cdk-lib/aws-apigateway";
-
+import { AuthorizationType, MethodOptions, RestApi } from "aws-cdk-lib/aws-apigateway";
+import { AuthorizerWrapper } from "./auth/AuthorizationWrapper";
 import { GenericTable } from "./GenericTable";
+
 export class SpaceStack extends Stack {
   private api = new RestApi(this, "SpaceApi");
-
+  private authorizer: AuthorizerWrapper
   private spacesTable = new GenericTable(this, {
     tableName: "SpacesTable",
     primaryKey: "spaceId",
@@ -21,9 +22,18 @@ export class SpaceStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
 
+    this.authorizer = new AuthorizerWrapper(this,this.api)
+    
+      const optionWithAuthorizer: MethodOptions = {
+        authorizationType: AuthorizationType.COGNITO,
+        authorizer: {
+          authorizerId: this.authorizer.authorizer.authorizerId
+        }
+      }
+
     const spaceResource = this.api.root.addResource("spaces");
     spaceResource.addMethod("POST", this.spacesTable.createLambdaIntegration);
-    spaceResource.addMethod("GET", this.spacesTable.readLambdaIntegration);
+    spaceResource.addMethod("GET", this.spacesTable.readLambdaIntegration,optionWithAuthorizer);
     spaceResource.addMethod("PUT", this.spacesTable.updateLambdaIntegration);
     spaceResource.addMethod("DELETE", this.spacesTable.deleteLambdaIntegration);
 
