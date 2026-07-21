@@ -46,7 +46,7 @@ export class IdentityPoolWrapper {
       this.scope,
       "SpaceFinderIdentityPool",
       {
-        allowUnauthenticatedIdentities: true,
+        allowUnauthenticatedIdentities: false,
         cognitoIdentityProviders: [
           {
             clientId: this.userPoolClient.userPoolClientId,
@@ -124,7 +124,6 @@ export class IdentityPoolWrapper {
       identityPoolId: this.identityPool.ref,
       roles: {
         authenticated: this.authenticatedRole.roleArn,
-        unauthenticated: this.unAuthenticatedRole.roleArn,
       },
       roleMappings: {
         adminsMapping: {

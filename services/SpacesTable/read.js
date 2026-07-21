@@ -1,95 +1,112 @@
 const { DynamoDB } = require('aws-sdk');
+const { jsonResponse } = require('./response');
 
 const dbClient = new DynamoDB.DocumentClient();
 
-const TABLE_NAME = process.env.TABLE_NAME
-const PRIMARY_KEY = process.env.PRIMARY_KEY
-module.exports.handler = async (event, context) => {
+const TABLE_NAME = process.env.TABLE_NAME;
+const PRIMARY_KEY = process.env.PRIMARY_KEY;
+const SUPPORTED_INDEXES = new Set((process.env.SECONDARY_INDEXES || '').split(',').filter(Boolean));
+const DEFAULT_LIMIT = 25;
+const MAX_LIMIT = 100;
 
-    const result = {
-        statusCode: 200,
-        body: "In dynamodb"
-    }
-
+module.exports.handler = async (event) => {
     try {
+        const queryParams = event.queryStringParameters || {};
 
-        if (event.queryStringParameters) {
-            console.log(event.queryStringParameters);
-            if (PRIMARY_KEY in event.queryStringParameters) {
-                result.body = await queryWithPrimaryPartition(event.queryStringParameters)
-            } else {
-                result.body = await querywithGlobalSecondaryIndexes(event.queryStringParameters)
-            }
-        } else {
-            result.body = await sacnTable()
+        if (PRIMARY_KEY in queryParams) {
+            return jsonResponse(200, await queryWithPrimaryPartition(queryParams));
         }
-    } catch (error) {
-        console.log("error:", error)
-        result.body = error.message;
-    }
-    return result;
-}
 
-async function sacnTable() {
+        const indexKey = Object.keys(queryParams).find((key) => SUPPORTED_INDEXES.has(key));
+        if (indexKey) {
+            return jsonResponse(200, await queryWithGlobalSecondaryIndex(indexKey, queryParams[indexKey], queryParams));
+        }
+
+        const filterKeys = Object.keys(queryParams).filter((key) => !['limit', 'nextToken'].includes(key));
+        if (filterKeys.length > 0) {
+            return jsonResponse(400, { message: `Unsupported query parameter: ${filterKeys[0]}` });
+        }
+
+        return jsonResponse(200, await scanTable(queryParams));
+    } catch (error) {
+        console.log('DynamoDB read error:', error);
+        return jsonResponse(500, { message: 'Failed to read spaces.' });
+    }
+};
+
+async function scanTable(queryParams) {
     const queryResponse = await dbClient.scan({
         TableName: TABLE_NAME,
+        Limit: getLimit(queryParams.limit),
+        ExclusiveStartKey: decodeNextToken(queryParams.nextToken)
     }).promise();
-    return JSON.stringify(queryResponse.Items)
+
+    return formatCollectionResponse(queryResponse);
 }
 
 async function queryWithPrimaryPartition(queryParams) {
     const keyValue = queryParams[PRIMARY_KEY];
     const queryResponse = await dbClient.query({
         TableName: TABLE_NAME,
-        KeyConditionExpression: '#zz = :zzzz',
+        KeyConditionExpression: '#pk = :pk',
         ExpressionAttributeNames: {
-            '#zz': PRIMARY_KEY
+            '#pk': PRIMARY_KEY
         },
         ExpressionAttributeValues: {
-            ':zzzz': keyValue
-        }
+            ':pk': keyValue
+        },
+        Limit: getLimit(queryParams.limit),
+        ExclusiveStartKey: decodeNextToken(queryParams.nextToken)
     }).promise();
-    return JSON.stringify(queryResponse.Items);
+
+    return formatCollectionResponse(queryResponse);
 }
 
-async function querywithGlobalSecondaryIndexes(queryParams) {
-    console.log("Queryparam:", queryParams);
-    const queryKey = Object.keys(queryParams)[0]
-    const queryValue = queryParams[queryKey]
+async function queryWithGlobalSecondaryIndex(queryKey, queryValue, queryParams) {
     const queryResponse = await dbClient.query({
         TableName: TABLE_NAME,
         IndexName: queryKey,
-        KeyConditionExpression: `#zzzz= :zz`,
+        KeyConditionExpression: '#gsi = :gsiValue',
         ExpressionAttributeNames: {
-            '#zzzz': queryKey
+            '#gsi': queryKey
         },
         ExpressionAttributeValues: {
-            ':zz': queryValue
-        }
-    }).promise()
-    return JSON.stringify(queryResponse.Items)
+            ':gsiValue': queryValue
+        },
+        Limit: getLimit(queryParams.limit),
+        ExclusiveStartKey: decodeNextToken(queryParams.nextToken)
+    }).promise();
 
+    return formatCollectionResponse(queryResponse);
 }
 
-async function querywithGlobalSecondaryIndexees(queryParams) {
-    console.log("Queryparam:", queryParams);
+function getLimit(limit) {
+    const parsedLimit = Number(limit || DEFAULT_LIMIT);
+    if (Number.isNaN(parsedLimit) || parsedLimit < 1) {
+        return DEFAULT_LIMIT;
+    }
+    return Math.min(parsedLimit, MAX_LIMIT);
+}
 
-    const [queryKey] = Object.keys(queryParams)
-    const queryValue = queryParams[queryKey]
+function decodeNextToken(nextToken) {
+    if (!nextToken) {
+        return undefined;
+    }
 
-    const queryKey1 = Object.keys(queryParams)[1]
-    const queryValue1 = queryParams[queryKey1]
-    const queryResponse = await dbClient.scan({
-        TableName: TABLE_NAME,
-        FilterExpression: "contains(#aaaa,:aa) AND #bbbb = :bb",
-        ExpressionAttributeNames: {
-            '#aaaa': queryKey, '#bbbb': queryKey1
-        },
-        ExpressionAttributeValues: {
-            ':aa': queryValue, ':bb': queryValue1
-        }
-    }).promise()
+    return JSON.parse(Buffer.from(nextToken, 'base64').toString('utf8'));
+}
 
-    return JSON.stringify(queryResponse.Items)
+function encodeNextToken(lastEvaluatedKey) {
+    if (!lastEvaluatedKey) {
+        return undefined;
+    }
 
+    return Buffer.from(JSON.stringify(lastEvaluatedKey)).toString('base64');
+}
+
+function formatCollectionResponse(queryResponse) {
+    return {
+        items: queryResponse.Items || [],
+        nextToken: encodeNextToken(queryResponse.LastEvaluatedKey)
+    };
 }

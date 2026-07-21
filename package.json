@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc --noEmit",
+    "synth": "cdk synth"
   },
   "repository": {
     "type": "git",
@@ -23,13 +25,15 @@
     "aws-amplify": "^5.0.8",
     "aws-sdk": "^2.1281.0",
     "cors": "^2.8.5",
-    "node-typescript": "^0.1.3",
-    "path": "^0.12.7",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "aws-cdk-lib": "^2.150.0",
+    "constructs": "^10.3.0"
   },
   "devDependencies": {
     "@types/uuid": "^9.0.0",
-    "aws-cdk": "^2.54.0",
-    "typescript": "^4.9.4"
+    "aws-cdk": "^2.150.0",
+    "typescript": "^5.5.4",
+    "@types/node": "^20.14.12",
+    "ts-node": "^10.9.2"
   }
 }

@@ -1,31 +1,42 @@
 const { DynamoDB } = require('aws-sdk');
 const dbClient = new DynamoDB.DocumentClient();
-const {generateRandomId} = require('../Shared/Utils')
-const TABLE_NAME = process.env.TABLE_NAME
-module.exports.handler = async (event, context) => {
+const { generateRandomId } = require('../Shared/Utils');
+const { jsonResponse, parseJsonBody } = require('./response');
 
-  const result = {
-    statusCode: 200,
-    body: "in dynamodb"
-  }
+const TABLE_NAME = process.env.TABLE_NAME;
+const PRIMARY_KEY = process.env.PRIMARY_KEY;
 
-  const item = typeof event.body == 'object'?event.body:JSON.parse(event.body)
-  item.spaceId =  generateRandomId() 
+module.exports.handler = async (event) => {
+    let item;
 
-  try {
-    await dbClient.put({
-        TableName: TABLE_NAME,
-        Item: item,
-      }).promise().then(() => {
-        console.log("success")
-      }).catch((error) => console.log('dynamodb error', error));
-  } catch (error) {
-    console.log("error:", error)
-    result.body = error.message;
-  }
-  result.body = JSON.stringify(`Created item with id: ${item.spaceId}`);
+    try {
+        item = parseJsonBody(event);
+    } catch (error) {
+        return jsonResponse(400, { message: 'Request body must be valid JSON.' });
+    }
 
-  return result;
+    if (!item || Object.keys(item).length === 0) {
+        return jsonResponse(400, { message: 'Request body is required.' });
+    }
 
-}
+    item[PRIMARY_KEY] = item[PRIMARY_KEY] || generateRandomId();
 
+    try {
+        await dbClient.put({
+            TableName: TABLE_NAME,
+            Item: item,
+            ConditionExpression: 'attribute_not_exists(#primaryKey)',
+            ExpressionAttributeNames: {
+                '#primaryKey': PRIMARY_KEY
+            }
+        }).promise();
+
+        return jsonResponse(201, {
+            message: `Created item with id: ${item[PRIMARY_KEY]}`,
+            item
+        });
+    } catch (error) {
+        console.log('DynamoDB create error:', error);
+        return jsonResponse(500, { message: 'Failed to create space.' });
+    }
+};
