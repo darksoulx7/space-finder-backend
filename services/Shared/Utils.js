@@ -1,3 +1,7 @@
-export function generateRandomId() {
-    return Math.random().toString(36).slice(2).toString();
+const { v4: uuidv4 } = require('uuid');
+
+function generateRandomId() {
+    return uuidv4();
 }
+
+module.exports = { generateRandomId };

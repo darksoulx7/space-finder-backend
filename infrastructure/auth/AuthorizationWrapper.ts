@@ -76,7 +76,6 @@ export class AuthorizerWrapper {
         identitySource: "method.request.header.Authorization",
       }
     );
-    this.authorizer._attachToApi(this.api);
   }
 
   private createAdminsGroup() {
